@@ -52,10 +52,62 @@ python app.py
 
 ---
 
-## 👥 Controle de Acesso
+## 👥 Funcionalidades
 
-- **Administradores**: podem criar usuários, acessar todos os dados, e editar qualquer planilha
-- **Usuários regulares**: acessam e editam apenas os registros que enviaram
+### Autenticação e Sessão
+- Login e logout com verificação de sessão
+- Sessões persistentes com `Flask-Session`
+- Hash de senha com `werkzeug.security`
+
+### Gerenciamento de Usuários
+- Admin pode criar, listar e excluir usuários
+- Usuários comuns acessam apenas os dados que enviaram
+- Troca de senha via interface protegida
+
+### Upload e Manipulação de Excel
+- Upload de planilhas `.xlsx` com múltiplas abas
+- Validação de conteúdo antes da inserção no banco
+- Backup automático dos uploads
+
+### CRUD de Registros
+- Listagem, edição e exclusão de registros
+- Filtros por tabela, arquivo, usuário e campos específicos
+- Validação e persistência via SQLAlchemy
+
+### Geração de Códigos de Barras
+- Geração de códigos no formato `TYPE-STATE-MUNI-SEQ-DATE`
+- Criação de imagem de código de barras (`python-barcode`)
+- Download e histórico de solicitações
+
+---
+
+## 🔗 Documentação de Rotas Principais
+
+### Autenticação
+- `POST /api/login` → autentica o usuário
+- `GET /logout` → encerra a sessão
+- `POST /api/change-password` → altera a senha logado
+
+### Usuários
+- `GET /manage-users` → exibe painel de gerenciamento (admin)
+- `GET /user-details/<id>` → exibe uploads do usuário
+
+### Upload & Excel
+- `GET /upload` → página de upload
+- `POST /upload` → envia planilha e insere dados no banco
+
+### Banco de Dados
+- `GET /database-management` → painel CRUD
+- `POST /api/data` → lista registros com filtros
+- `PUT /api/data` → edita registro
+- `DELETE /api/data` → exclui registro
+
+### Código de Barras
+- `GET /code-generator` → formulário de geração
+- `POST /generate-barcode` → cria e salva o código
+
+### Tabela Geral
+- `GET /tabela-geral` → visualização consolidada dos dados
 
 ---
 
@@ -63,8 +115,8 @@ python app.py
 
 - Sessão protegida com cookies assinados
 - Senhas armazenadas com hash seguro (`werkzeug.security`)
-- Controle de upload por extensão e validação de conteúdo
-- Geração de código de barras rastreável por data, localidade e tipo
+- Validação de uploads, permissões e filtros
+- Controle por tipo de usuário (admin e comum)
 
 ---
 
@@ -77,4 +129,4 @@ Este projeto é distribuído sob a licença [MIT](LICENSE).
 ## ✍️ Autor
 
 **Lucas F. T. Leonardo**  
-Cientista de Dados e desenvolvedor de aplicações web
+Cientista de Dados e desenvolvedor de aplicações web.
