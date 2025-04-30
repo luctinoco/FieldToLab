@@ -1,0 +1,11 @@
+Flask
+Flask-Session
+Flask-Cors
+Flask-Limiter
+SQLAlchemy
+pandas
+openpyxl
+python-barcode
+Pillow
+PyMySQL
+Werkzeug
