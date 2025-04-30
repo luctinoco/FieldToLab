@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload de Excel</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #007BFF, #0056b3);
+            padding: 15px;
+            color: white;
+            width: 100%;
+            text-align: center;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            margin-top: 20px;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        button {
+            background: #007BFF;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .back-button {
+            margin-top: 15px;
+            background: #6c757d;
+            text-decoration: none;
+            padding: 10px 15px;
+            color: white;
+            border-radius: 5px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .modal button {
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>Upload de Arquivo Excel</h1>
+    </div>
+
+    <div class="container">
+        <h2>Cada aba virará uma tabela separada no banco.</h2>
+        <input type="file" id="fileInput" accept=".xlsx">
+        <button onclick="uploadFile()">Enviar</button>
+        <p id="status"></p>
+        <br>
+        <a href="/dashboard" class="back-button">Voltar</a>
+    </div>
+
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <p id="modalMessage"></p>
+            <button id="confirmYes">Sim</button>
+            <button id="confirmNo">Não</button>
+        </div>
+    </div>
+
+    <script>
+        async function uploadFile() {
+            let fileInput = document.getElementById("fileInput");
+            let file = fileInput.files[0];
+            let status = document.getElementById("status");
+
+            if (!file) {
+                status.textContent = "Por favor, selecione um arquivo.";
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                let response = await fetch("/upload-excel", {
+                    method: "POST",
+                    body: formData
+                });
+
+                let data = await response.json();
+
+                if (response.status === 409) {
+                    showConfirmationModal(data.message, () => overwriteFile(file));
+                } else {
+                    status.textContent = data.message;
+                }
+            } catch (error) {
+                status.textContent = "Erro ao enviar arquivo.";
+            }
+        }
+
+        function showConfirmationModal(message, confirmCallback) {
+            let modal = document.getElementById("confirmModal");
+            let modalMessage = document.getElementById("modalMessage");
+            let confirmYes = document.getElementById("confirmYes");
+            let confirmNo = document.getElementById("confirmNo");
+
+            modalMessage.textContent = message;
+            modal.style.display = "flex";
+
+            confirmYes.onclick = function () {
+                modal.style.display = "none";
+                confirmCallback();
+            };
+
+            confirmNo.onclick = function () {
+                modal.style.display = "none";
+                document.getElementById("status").textContent = "Upload cancelado.";
+            };
+        }
+
+        async function overwriteFile(file) {
+            let status = document.getElementById("status");
+            let formData = new FormData();
+            formData.append("file", file);
+            formData.append("replace", "true");
+
+            try {
+                let response = await fetch("/upload-excel", {
+                    method: "POST",
+                    body: formData
+                });
+                let data = await response.json();
+                status.textContent = data.message;
+            } catch (error) {
+                status.textContent = "Erro ao substituir arquivo.";
+            }
+        }
+    </script>
+</body>
+</html>

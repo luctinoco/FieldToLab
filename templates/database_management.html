@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciar Banco de Dados (Tabelas Fixas)</title>
+  <style>
+    /* ============================
+       🔹 Estilos Globais (body, navbar, container) 🔹
+       ============================ */
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .navbar {
+      background: linear-gradient(135deg, #007BFF, #0056b3);
+      padding: 15px;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .navbar h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    .logout {
+      background: white;
+      color: #007BFF;
+      padding: 8px 15px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+    .logout:hover {
+      background: #ddd;
+      transform: scale(1.05);
+    }
+    .container {
+      flex: 1;
+      padding: 20px;
+    }
+    .user-info {
+      margin-bottom: 20px;
+      font-size: 1rem;
+      color: #333;
+    }
+    /* ============================
+       🔹 Estilos da Tabela 🔹
+       ============================ */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      margin-top: 20px;
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+      table-layout: auto;
+    }
+    th, td {
+      border: 2px solid #ddd;
+      padding: 15px;
+      text-align: left;
+      white-space: normal;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      vertical-align: top;
+    }
+    th {
+      background: linear-gradient(135deg, #007BFF, #0056b3);
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      text-transform: uppercase;
+      padding: 15px;
+      white-space: nowrap;
+    }
+    tbody tr:nth-child(even) td {
+      background: #f8f9fa;
+    }
+    tbody tr:hover td {
+      background: #e9ecef;
+    }
+    .row-data-cell {
+      vertical-align: middle !important;
+    }
+    .row-data-table td[data-type="date"] {
+      text-align: center;
+    }
+    .row-data-input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 15px;
+      white-space: normal;
+    }
+    /* ============================
+       🔹 Botões Estilizados 🔹
+       ============================ */
+    .btn {
+      padding: 10px 14px;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.3s ease-in-out;
+    }
+    .edit-btn {
+      background-color: #28a745;
+      color: white;
+    }
+    .edit-btn:hover {
+      background-color: #218838;
+    }
+    .delete-btn {
+      background-color: #dc3545;
+      color: white;
+    }
+    .delete-btn:hover {
+      background-color: #c82333;
+    }
+    /* Ajusta as colunas ID, Username e Arquivo */
+    #records-table th:nth-child(1),
+    #records-table th:nth-child(2),
+    #records-table th:nth-child(3),
+    #records-table td:nth-child(1),
+    #records-table td:nth-child(2),
+    #records-table td:nth-child(3) {
+      white-space: nowrap;
+      width: auto;
+    }
+    /* Oculta a coluna "Criado em" (última coluna) */
+    #records-table th:last-child,
+    #records-table td:last-child {
+      display: none;
+    }
+    /* ============================
+       🔹 Estilo dos Filtros 🔹
+       ============================ */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .filters label {
+      margin-right: 5px;
+      font-weight: bold;
+    }
+    .filters select {
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Barra de navegação -->
+  <div class="navbar">
+    <h1>Gerenciar Banco de Dados (Tabelas Fixas)</h1>
+    <button class="logout" onclick="logout()">Logout</button>
+  </div>
+
+  <!-- Conteúdo principal -->
+  <div class="container">
+    <div class="user-info">
+      Usuário: <span id="username">Carregando...</span> |
+      Tipo de conta: <span id="userType">...</span>
+    </div>
+
+    <h2>Gerenciamento de Tabelas</h2>
+
+    <!-- Filtros -->
+    <div class="filters">
+      <!-- Filtro de Tabela -->
+      <div>
+        <label for="tableSelect">Tabela:</label>
+        <select id="tableSelect">
+          <option value="amostra">amostra</option>
+          <option value="dpp">dpp</option>
+          <option value="elisa">elisa</option>
+          <option value="expedição">expedição</option>
+          <option value="mamíferos_domésticos">mamíferos_domésticos</option>
+          <option value="mamíferos_silvestres">mamíferos_silvestres</option>
+          <option value="molecular">molecular</option>
+          <option value="parasitologico_direto">parasitologico_direto</option>
+          <option value="parasitologico_indireto">parasitologico_indireto</option>
+          <option value="rifi">rifi</option>
+          <option value="trfl">trfl</option>
+          <option value="vetores">vetores</option>
+        </select>
+      </div>
+
+      <!-- Filtro de Usuário -->
+      <div>
+        <label for="userSelect">Usuário:</label>
+        <select id="userSelect">
+          <option value="">Todos</option>
+        </select>
+      </div>
+
+      <!-- Filtro de Arquivo -->
+      <div>
+        <label for="fileSelect">Arquivo:</label>
+        <select id="fileSelect">
+          <option value="">Todos</option>
+        </select>
+      </div>
+
+      <button id="loadBtn" onclick="loadTable()">Carregar Tabela</button>
+    </div>
+
+    <p id="statusMessage"></p>
+
+    <table id="records-table" style="display: none;">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Username</th>
+          <th>Arquivo</th>
+          <th>Row Data (JSON)</th>
+          <th>Salvar</th>
+          <th>Deletar</th>
+          <th>Criado em</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+<script>
+    var username = "";
+    var userType = "";
+
+    function logout() {
+      fetch('/logout', { method: 'GET' })
+        .then(response => {
+          if (response.ok) {
+            alert('Logout realizado com sucesso!');
+            window.location.href = '/';
+          } else {
+            alert('Erro ao realizar logout. Tente novamente.');
+          }
+        })
+        .catch(error => {
+          console.error('Erro ao fazer logout:', error);
+          alert('Erro ao se conectar ao servidor.');
+        });
+    }
+
+    function loadFilterOptions() {
+      fetch("/database/api/get-filter-options")
+        .then(resp => resp.json())
+        .then(data => {
+          if (!data || typeof data !== "object") return;
+
+          const userSelect = document.getElementById("userSelect");
+          const fileSelect = document.getElementById("fileSelect");
+
+          userSelect.innerHTML = '<option value="">Todos</option>';
+          fileSelect.innerHTML = '<option value="">Todos</option>';
+
+          (data.usernames || []).forEach(u => {
+            let opt = document.createElement("option");
+            opt.value = u;
+            opt.textContent = u;
+            userSelect.appendChild(opt);
+          });
+
+          (data.files || []).forEach(f => {
+            let opt = document.createElement("option");
+            opt.value = f;
+            opt.textContent = f;
+            fileSelect.appendChild(opt);
+          });
+        })
+        .catch(error => {
+          console.error("Erro ao carregar filtros:", error);
+        });
+    }
+
+
+    function loadTable() {
+      const tableName = document.getElementById("tableSelect").value;
+      const userFilter = document.getElementById("userSelect").value;
+      const fileFilter = document.getElementById("fileSelect").value;
+      const statusMsg = document.getElementById("statusMessage");
+      const tableElem = document.getElementById("records-table");
+      const tbody = tableElem.querySelector("tbody");
+
+      statusMsg.textContent = "Carregando...";
+
+      let url = `/database/api/${tableName}/get-database`;
+      let params = [];
+      if (userFilter) params.push(`username=${encodeURIComponent(userFilter)}`);
+      if (fileFilter) params.push(`file_name=${encodeURIComponent(fileFilter)}`);
+      if (params.length > 0) url += "?" + params.join("&");
+
+      fetch(url)
+        .then(response => {
+          if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+          return response.json();
+        })
+        .then(data => {
+          console.log("🚀 Dados recebidos:", data);
+
+          if (!Array.isArray(data)) {
+            throw new Error("Resposta inválida da API");
+          }
+
+          if (data.length === 0) {
+            statusMsg.textContent = "Nenhum dado encontrado.";
+            tableElem.style.display = "none";
+            return;
+          }
+
+          statusMsg.textContent = "";
+          tbody.innerHTML = "";
+          tableElem.style.display = "table";
+
+          data.forEach(row => {
+            let canEdit = userType === 'admin' || (userType === 'regular' && row.username === username);
+            let canDelete = userType === 'admin' || (userType === 'regular' && row.username === username);
+
+            let tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${row.id || "-"}</td>
+              <td>${row.username || "-"}</td>
+              <td>${row.file_name || "-"}</td>
+              <td class="row-data-cell">
+                ${convertRowDataToTable(row.row_data || {}, row.id)}
+              </td>
+              <td>
+                <button class="btn edit-btn" ${canEdit ? "" : "disabled"}
+                  onclick="${canEdit ? `updateRecord('${tableName}', '${row.id}', this)` : ''}"
+                  style="${canEdit ? '' : 'opacity: 0.5; cursor: not-allowed;'}">Salvar</button>
+              </td>
+              <td>
+                <button class="btn delete-btn" ${canDelete ? "" : "disabled"}
+                  onclick="${canDelete ? `deleteRecord('${tableName}', '${row.id}', this)` : ''}"
+                  style="${canDelete ? '' : 'opacity: 0.5; cursor: not-allowed;'}">Deletar</button>
+              </td>
+              <td>${row.created_at || "N/A"}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+          ajustarLarguraCelulas();
+        })
+        .catch(err => {
+          console.error("❌ Erro ao carregar tabela:", err);
+
+          if (tbody.innerHTML.trim() === "") {
+            statusMsg.textContent = "Erro ao buscar dados.";
+          }
+        });
+    }
+
+function convertRowDataToTable(jsonArray, rowId) {
+  if (!Array.isArray(jsonArray)) jsonArray = [jsonArray];
+
+  // Obtém o nome da tabela selecionada no select e converte para minúsculas
+  const currentTable = document.getElementById("tableSelect").value.toLowerCase();
+
+  // Mapeamento com a ordem desejada dos cabeçalhos para cada tabela
+  const tableColumnOrders = {
+    "expedição": [
+      "Natureza", "Finalidade", "Código", "Solicitante", "Área de surto", "Responsavel",
+      "Data inicial", "Data final", "Data de recebimento", "Equipe", "Bioma", "UF",
+      "Município", "Localidade", "Financiadores", "Trilha", "Data inicial da trilha",
+      "Data final da trilha", "Ponto", "Datum", "Formato da coordenada", "Fuso UTM",
+      "E ou Long", "N ou Lat", "Altitude (m)", "Considerações"
+    ],
+    "vetores": [
+      "Ordem", "Gênero", "Espécie", "Número de catálogo", "Captura", "Número de campo",
+      "Coletor", "Sexo", "Data de captura", "Colônia", "Estágio de vida", "Localidade",
+      "Forma de captura", "Armadilha", "Trilha", "Ponto", "Datum", "Formato da coordenada",
+      "Fuso UTM", "E ou Long", "N ou Lat", "Altitude (m)", "Origem  das coordenadas",
+      "Ecótopo", "Micro-ecótope", "Vegetação", "Estrato arbóreo", "Observações"
+    ],
+    "mamíferos_domésticos": [
+      "Ordem", "Gênero", "Espécie", "Número de catálogo", "Captura", "Número de campo",
+      "Coletor", "Sexo", "Data de captura", "Peso(Kg)", "Porte", "Faixa etária",
+      "Ecto-parasitas", "Endo-parasitas", "Nome do animal", "Raça", "Idade (anos)",
+      "Nome do proprietário", "Endereço", "Localidade", "Datum", "Formato da coordenada",
+      "Fuso UTM", "E ou Long", "N ou LAT", "Altitude (m)", "Origem  das coordenadas",
+      "Ecótopo", "Observações"
+    ],
+    "mamíferos_silvestres": [
+      "Ordem", "Gênero", "Espécie", "Número de catálogo", "Captura", "Número de campo",
+      "Coletor", "Sexo", "Data de captura", "Peso(Kg)", "Porte", "Faixa etária", "Brinco",
+      "Estado reprodutivo", "Dentição", "Ecto-parasitas", "Endo-parasitas", "Localidade",
+      "Forma de captura", "Armadilha", "Trilha", "Ponto", "Datum", "Formato da coordenada",
+      "Fuso UTM", "E ou Long", "N ou LAT", "Altitude (m)", "Origem  das coordenadas",
+      "Ecótopo", "Vegetação", "Estrato arbóreo", "Observações"
+    ],
+    "amostra": [
+      "Tipo de Amostra", "ID da Amostra", "Ocorrência", "Captura", "Código da Amostra",
+      "Operador", "Data", "Volume  (µl)", "Localização", "Descartado", "Amostra de Origem",
+      "Quantidade de tubos", "Data de viabilidade", "Método extração(DNA)",
+      "Concentração(DNA)", "Pureza(DNA)", "Código sicol", "Observação"
+    ],
+    "molecular": [
+      "Operador", "Data", "Amostra", "POP", "PUE", "Alvo", "Enzima",
+      "Alteração do protocolo", "Operador Eletroforese", "Data eletroforese",
+      "Mapa gel", "Resultado obs", "Purificação", "Sequência Forward",
+      "Sequencia REVERSE", "Genbank", "Data do Blast", "Identidade(%)",
+      "Cobertura(%)", "Valor estatístico", "Resultado", "Observação"
+    ],
+    "rifi": [
+      "Operador", "Data", "Amostra", "POP", "PUE", "Antígeno", "Data antígeno",
+      "Conjugado", "Código conjugado", "Lote conjugado", "Validade conjugado",
+      "Diluição recomendada conjugado", "Diluição de uso conjugado", "Antissoro",
+      "Diluição de uso antissoro", "Data antissoro", "Resultado T. cruzi",
+      "Título T. cruzi", "Resultado Leishmania", "Título Leishmania",
+      "Resultado T. evansi", "Título T. evansi", "Observação"
+    ],
+    "elisa": [
+      "Operador", "Data", "Amostra", "POP", "PUE", "Número de protocolo",
+      "Lote kit LVC", "Antígeno", "Data antígeno", "Conjugado",
+      "Diluição de uso conjugado", "Observação"
+    ],
+    "dpp": [
+      "Operador", "Data", "Amostra", "POP", "PUE", "Data fabricação kit",
+      "Lote kit", "Validade kit", "Resultado", "Observação"
+    ],
+    "trfl": [
+      "Operador", "Data", "Amostra", "POP", "PUE", "Data fabricação kit",
+      "Lote kit", "Validade kit", "Resultado", "Observação"
+    ],
+    "parasitologico_direto": [
+      "Operador", "Data", "Amostra", "POP", "PUE", "Técnica", "Resultado", "Observação"
+    ],
+    "parasitologico_indireto": [
+      "Operador", "Data", "Amostra", "POP", "PUE", "Técnica", "Resultado", "Observação"
+    ]
+  };
+
+  // Recupera os cabeçalhos definidos para a tabela atual
+  let headers = tableColumnOrders[currentTable] || [];
+
+  // Se não houver mapeamento definido, utiliza as chaves dos objetos do JSON
+  if (headers.length === 0) {
+    const uniqueKeys = new Set();
+    jsonArray.forEach(obj => Object.keys(obj).forEach(key => uniqueKeys.add(key)));
+    headers = Array.from(uniqueKeys);
+  }
+
+  // Monta a tabela HTML com os cabeçalhos e os dados
+  let tableHtml = `<table class="row-data-table" data-row-id="${rowId}" style="width:100%; border-collapse: collapse;">`;
+  tableHtml += "<tr>";
+  headers.forEach(key => {
+    tableHtml += `<th style="border: 1px solid #ddd; padding: 8px;">${key}</th>`;
+  });
+  tableHtml += "</tr>";
+
+  jsonArray.forEach(obj => {
+    tableHtml += "<tr>";
+    headers.forEach(key => {
+      tableHtml += `<td style="border: 1px solid #ddd; padding: 8px;">
+          <input type="text" class="row-data-input" data-key="${key}" value="${obj[key] || ''}" style="width: auto; border: none;">
+        </td>`;
+    });
+    tableHtml += "</tr>";
+  });
+  tableHtml += "</table>";
+  return tableHtml;
+}
+
+    function updateRecord(tableName, recordId, btn) {
+      if (btn.classList.contains("disabled")) return;
+
+      let tr = btn.closest("tr");
+      let table = tr.querySelector(".row-data-table");
+      let updatedJsonArray = [];
+
+      table.querySelectorAll("tr").forEach(row => {
+        let rowDataObj = {};
+        row.querySelectorAll(".row-data-input").forEach(input => {
+          rowDataObj[input.dataset.key] = input.value.trim();
+        });
+        updatedJsonArray.push(rowDataObj);
+      });
+
+      fetch(`/database/api/${tableName}/update-database`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: recordId, new_row_data: updatedJsonArray })
+      })
+        .then(resp => resp.json())
+        .then(data => { alert(data.message); })
+        .catch(err => console.error("Erro ao atualizar registro:", err));
+    }
+
+    function deleteRecord(tableName, recordId) {
+      if (!confirm(`Tem certeza que deseja deletar o registro ID=${recordId}?`)) return;
+
+      fetch(`/database/api/${tableName}/delete-record`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: recordId })
+      })
+        .then(resp => resp.json())
+        .then(data => { alert(data.message); loadTable(); })
+        .catch(err => console.error("Erro ao deletar:", err));
+    }
+
+    function loadUserInfo() {
+      fetch("/api/get-user-type", { method: "GET", credentials: "include" })
+        .then(response => response.json())
+        .then(data => {
+          username = data.username;
+          userType = data.user_type;
+          document.getElementById("username").textContent = username;
+          document.getElementById("userType").textContent = userType;
+        })
+        .catch(error => console.error("❌ Erro ao buscar usuário:", error));
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      loadUserInfo();
+      loadFilterOptions();
+    });
+</script>
+
+</body>
+</html>

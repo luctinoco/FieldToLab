@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerar Código LBT - FieldToLab</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #007BFF, #00C6FF);
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #007BFF, #0056b3);
+            padding: 15px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .navbar .logout {
+            background: white;
+            color: #007BFF;
+            padding: 8px 15px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+        .navbar .logout:hover {
+            background: #ddd;
+            transform: scale(1.05);
+        }
+        .form-container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            margin: auto;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input[type="date"], input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        select:focus, input[type="date"]:focus, input[type="number"]:focus {
+            border-color: #007BFF;
+            outline: none;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #007BFF, #0056b3);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+        button:hover {
+            background: linear-gradient(135deg, #0056b3, #007BFF);
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>Gerar Código LBT</h1>
+        <button class="logout" onclick="logout()">Logout</button>
+    </div>
+    <div class="form-container">
+        <form id="codeForm">
+            <label for="codeType">Tipo de Código:</label>
+            <select id="codeType" name="codeType">
+                <option value="pesquisa">Pesquisa</option>
+                <option value="referencia">Referência</option>
+            </select>
+
+            <label for="state">Estado:</label>
+            <select id="state" name="state" required>
+                <option value="">Selecione um estado</option>
+            </select>
+
+            <label for="municipality">Município:</label>
+            <select id="municipality" name="municipality" required>
+                <option value="">Selecione um município</option>
+            </select>
+
+            <label for="date">Data do Início do Inquérito:</label>
+            <input type="date" id="date" name="date" required>
+
+            <label for="sequentialStart">Sequencial Inicial:</label>
+            <input type="number" id="sequentialStart" name="sequentialStart" required>
+
+            <label for="sequentialEnd">Sequencial Final:</label>
+            <input type="number" id="sequentialEnd" name="sequentialEnd" required>
+
+            <button type="submit">Gerar Código LBT</button>
+        </form>
+    </div>
+
+    <script>
+        function fetchWithSessionCheck(url, options = {}) {
+            return fetch(url, options)
+                .then(response => {
+                    if (response.status === 401) {
+                        return response.json().then(errorData => {
+                            alert(errorData.message || 'Sua sessão expirou devido à inatividade. Faça login novamente.');
+                            window.location.href = '/';
+                        });
+                    }
+                    return response;
+                })
+                .catch(error => {
+                    console.error('Erro ao se conectar com o servidor:', error);
+                    alert('Erro ao se conectar com o servidor. Tente novamente.');
+                });
+        }
+
+        function logout() {
+            fetchWithSessionCheck('/logout', { method: 'GET' })
+                .then(response => {
+                    if (response.ok) {
+                        localStorage.clear();
+                        alert('Logout realizado com sucesso!');
+                        window.location.href = '/';
+                    }
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const stateSelect = document.getElementById('state');
+            const municipalitySelect = document.getElementById('municipality');
+
+            fetchWithSessionCheck('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome')
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(state => {
+                        const option = document.createElement('option');
+                        option.value = state.sigla;
+                        option.textContent = state.nome;
+                        stateSelect.appendChild(option);
+                    });
+                });
+
+            stateSelect.addEventListener('change', function() {
+                const stateId = stateSelect.value;
+                municipalitySelect.innerHTML = '<option value="">Selecione um município</option>';
+
+                if (stateId) {
+                    fetchWithSessionCheck(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateId}/municipios`)
+                        .then(response => response.json())
+                        .then(data => {
+                            data.forEach(municipality => {
+                                const option = document.createElement('option');
+                                option.value = municipality.nome;
+                                option.textContent = municipality.nome;
+                                municipalitySelect.appendChild(option);
+                            });
+                        });
+                }
+            });
+
+            document.getElementById('codeForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                const data = {
+                    code_type: document.getElementById('codeType').value === 'pesquisa' ? 'PE' : 'RE',
+                    state: document.getElementById('state').value,
+                    municipality: document.getElementById('municipality').value,
+                    date: document.getElementById('date').value,
+                    sequential_start: document.getElementById('sequentialStart').value,
+                    sequential_end: document.getElementById('sequentialEnd').value
+                };
+
+                fetchWithSessionCheck('/generate-barcode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.barcode_links && result.barcode_links.length > 0) {
+                        result.barcode_links.forEach(path => window.open(path, '_blank'));
+                    } else {
+                        alert(result.message || 'Erro ao gerar códigos de barras.');
+                    }
+                })
+                .catch(error => console.error('Erro ao gerar códigos de barras:', error));
+            });
+        });
+    </script>
+</body>
+</html>

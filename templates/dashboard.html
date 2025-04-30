@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - FieldToLab</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #007BFF, #0056b3);
+            padding: 15px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .navbar .logout {
+            background: white;
+            color: #007BFF;
+            padding: 8px 15px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+        .navbar .logout:hover {
+            background: #ddd;
+            transform: scale(1.05);
+        }
+        .container {
+            flex: 1;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .card h2 {
+            margin: 0;
+            color: #007BFF;
+        }
+        .card p {
+            color: #666;
+        }
+        .action-button {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #007BFF, #0056b3);
+            color: white;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 16px;
+            transition: background 0.3s, transform 0.2s;
+            cursor: pointer;
+        }
+        .action-button:hover {
+            background: linear-gradient(135deg, #0056b3, #007BFF);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra de navegação -->
+    <div class="navbar">
+        <h1>FieldToLab Dashboard</h1>
+        <button class="logout" onclick="logout()">Logout</button>
+    </div>
+
+    <!-- Conteúdo principal -->
+    <div class="container">
+        <!-- Gerar Códigos -->
+        <div class="card">
+            <h2>Gerar Códigos</h2>
+            <p>Crie novos códigos para amostras e exporte como código de barras.</p>
+            <a href="/code-generator" class="action-button">Ir para Gerador de Códigos</a>
+        </div>
+
+        <!-- Gerenciar Usuários (visível apenas para admins) -->
+        <div class="card" id="manageUsersCard" style="display: none;">
+            <h2>Gerenciar Usuários</h2>
+            <p>Adicione, edite ou remova usuários do sistema.</p>
+            <a href="/manage-users" class="action-button">Gerenciar Usuários</a>
+        </div>
+
+        <!-- Alterar Senha -->
+        <div class="card">
+            <h2>Alterar Senha</h2>
+            <p>Atualize sua senha de forma segura.</p>
+            <a href="/change-password" class="action-button">Alterar Senha</a>
+        </div>
+
+        <!-- Upload de Arquivo Excel -->
+        <div class="card">
+            <h2>Upload de Arquivo Excel</h2>
+            <p>Envie um arquivo Excel para processar os dados automaticamente.</p>
+            <a href="/upload" class="action-button">Fazer Upload</a>
+        </div>
+
+        <!-- Acessar Banco de Dados (somente admins) -->
+        <div class="card" id="manageDatabaseCard">
+            <h2>Gerenciar Banco de Dados</h2>
+            <p>Visualize e edite os dados do sistema.</p>
+            <a href="/database-management" class="action-button">Acessar Banco de Dados</a>
+        </div>
+    </div>
+
+    <script>
+        async function logout() {
+            try {
+                const response = await fetch('/logout', { method: 'GET' });
+                if (response.ok) {
+                    localStorage.clear();
+                    alert('Logout realizado com sucesso!');
+                    window.location.href = '/';
+                } else {
+                    alert('Erro ao realizar logout. Tente novamente.');
+                }
+            } catch (error) {
+                console.error('Erro ao fazer logout:', error);
+                alert('Erro ao se conectar ao servidor.');
+            }
+        }
+
+        function openExcelEdit() {
+            let file = prompt("Digite o nome do arquivo para editar os dados do Excel (ex.: nova_planilha_fieldtolabCFMA2017A):");
+            if (file) {
+                window.location.href = "/excel-edit?file=" + encodeURIComponent(file);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const manageUsersCard = document.getElementById('manageUsersCard');
+            const manageDatabaseCard = document.getElementById('manageDatabaseCard');
+
+            fetch('/api/get-user-type')
+                .then(response => {
+                    if (response.status === 401) {
+                        window.location.href = '/';
+                    } else {
+                        return response.json();
+                    }
+                })
+                .then(data => {
+                    if (data.user_type === 'admin') {
+                        manageUsersCard.style.display = 'block';
+                        manageDatabaseCard.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao verificar permissões:', error);
+                    alert('Erro ao se conectar ao servidor. Faça login novamente.');
+                    window.location.href = '/';
+                });
+        });
+    </script>
+</body>
+</html>

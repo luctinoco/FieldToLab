@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tabela Unificada por Expedição - Somente Leitura</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    .filter-section {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    label {
+      font-weight: bold;
+    }
+    select, button {
+      padding: 5px 10px;
+      font-size: 14px;
+    }
+    .table-container {
+      width: 100%;
+      overflow-x: auto; /* rolagem horizontal se necessário */
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: #fff;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #eee;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    /* Mini-tabela (row_data) em formato de linhas e colunas */
+    .mini-table {
+      border: 1px solid #aaa;
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13px;
+      margin: 5px 0;
+    }
+    .mini-table th, .mini-table td {
+      border: 1px solid #aaa;
+      padding: 4px;
+      text-align: left;
+      vertical-align: top;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tabela Unificada por Expedição (Somente Leitura)</h1>
+
+  <!-- Filtros: por expedição e por tabela -->
+  <div class="filter-section">
+    <div>
+      <label for="expedicaoSelect">Filtrar Expedição:</label>
+      <select id="expedicaoSelect">
+        <!-- Populado dinamicamente -->
+      </select>
+    </div>
+    <div>
+      <label for="tabelaSelect">Filtrar Tabela:</label>
+      <select id="tabelaSelect">
+        <!-- Populado dinamicamente -->
+      </select>
+    </div>
+    <div>
+      <button onclick="aplicarFiltros()">Aplicar Filtros</button>
+      <button onclick="limparFiltros()">Limpar Filtros</button>
+    </div>
+  </div>
+
+  <p id="statusMessage" style="color: red;"></p>
+
+  <div class="table-container">
+    <table id="tabelaGeral">
+      <thead>
+        <tr>
+          <th>Expedição</th>
+          <th>Tabela</th>
+          <th>Row Data (Mini Tabela)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Preenchido via JavaScript -->
+      </tbody>
+    </table>
+  </div>
+
+<script>
+  // Tabelas que queremos exibir (excluindo "expedição")
+  const TABELAS_VALIDAS = [
+    "amostra",
+    "dpp",
+    "elisa",
+    "mamíferos_domésticos",
+    "mamíferos_silvestres",
+    "molecular",
+    "parasitologico_direto",
+    "parasitologico_indireto",
+    "rifi",
+    "trfl",
+    "vetores"
+  ];
+
+  let expMap = {};             // Mapeia file_name (normalizado) -> Nome da expedição (row_data["Finalidade"])
+  let nomesExpedicoes = new Set(); // Conjunto de nomes de expedição para o filtro
+  let gruposAgrupados = [];      // Grupos: cada item { expNome, tabela, records: [...] }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    popularSelectTabela();
+    carregarDados();
+  });
+
+  // Normaliza o file_name: remove espaços extras e converte para minúsculas
+  function normalizar(nome) {
+    return nome ? nome.trim().toLowerCase().replace(/\s+/g, " ") : "";
+  }
+
+  /**
+   * Preenche o select de tabelas com as TABELAS_VALIDAS e a opção "Todas".
+   */
+  function popularSelectTabela() {
+    const sel = document.getElementById("tabelaSelect");
+    sel.innerHTML = "";
+    const optAll = document.createElement("option");
+    optAll.value = "";
+    optAll.textContent = "Todas";
+    sel.appendChild(optAll);
+    TABELAS_VALIDAS.forEach(tbl => {
+      const opt = document.createElement("option");
+      opt.value = tbl;
+      opt.textContent = tbl;
+      sel.appendChild(opt);
+    });
+  }
+
+  /**
+   * Carrega os registros do endpoint /api/tabela-geral/all.
+   * Processa os registros da tabela "expedição" para criar o mapeamento (usando file_name normalizado)
+   * e, em seguida, agrupa os registros das demais tabelas por (expedição, tabela).
+   */
+  function carregarDados() {
+    const statusMsg = document.getElementById("statusMessage");
+    statusMsg.textContent = "Carregando...";
+    fetch("/api/tabela-geral/all")
+      .then(resp => {
+        if (!resp.ok) throw new Error("Erro ao buscar dados: " + resp.status);
+        return resp.json();
+      })
+      .then(data => {
+        console.log("Dados recebidos:", data);
+        if (!Array.isArray(data)) throw new Error("Resposta inválida. Esperado array JSON.");
+
+        // Processa os registros da tabela "expedição" para criar o mapeamento:
+        // Usa file_name normalizado (ou row_data["nome_arquivo"], se existir) para associar ao nome da expedição (Finalidade)
+        const expRegs = data.filter(r => r.table_name === "expedição");
+        expRegs.forEach(r => {
+          const finalid = (r.row_data && r.row_data["Finalidade"]) || "Sem Nome";
+          // Tenta usar o campo "nome_arquivo" do row_data se existir; caso contrário, usa file_name
+          const nomeArquivo = (r.row_data && r.row_data["nome_arquivo"]) || r.file_name;
+          const fname = normalizar(nomeArquivo);
+          if (fname) {
+            expMap[fname] = finalid;
+            nomesExpedicoes.add(finalid);
+          }
+        });
+        popularSelectExpedicao();
+
+        // Filtra os registros das tabelas válidas
+        const registrosValidos = data.filter(r => TABELAS_VALIDAS.includes(r.table_name));
+
+        // Agrupa por (expedição, tabela)
+        // Se existir row_data["expedição"] (não vazio) usa-o; caso contrário, usa expMap baseado no "nome_arquivo" ou file_name.
+        const groups = {};
+        registrosValidos.forEach(r => {
+          const expRow = r.row_data && r.row_data["expedição"];
+          const rowExp = (expRow && expRow.trim() !== "") ? expRow : null;
+          const nomeArquivo = (r.row_data && r.row_data["nome_arquivo"]) || r.file_name;
+          const fname = normalizar(nomeArquivo);
+          const expNome = rowExp || expMap[fname] || "Sem Expedição";
+          const tbl = r.table_name;
+          const key = expNome + "|" + tbl;
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(r);
+        });
+
+        gruposAgrupados = [];
+        Object.keys(groups).forEach(key => {
+          const [expNome, tbl] = key.split("|");
+          gruposAgrupados.push({
+            expNome,
+            tabela: tbl,
+            records: groups[key]
+          });
+        });
+
+        statusMsg.textContent = "";
+        popularSelectExpedicao();
+        montarTabelaFinal(gruposAgrupados);
+      })
+      .catch(err => {
+        console.error("Erro ao carregar dados:", err);
+        statusMsg.textContent = "Erro ao carregar dados.";
+      });
+  }
+
+  /**
+   * Popula o select de expedições com os nomes extraídos (Finalidade).
+   */
+  function popularSelectExpedicao() {
+    const sel = document.getElementById("expedicaoSelect");
+    sel.innerHTML = "";
+    const optAll = document.createElement("option");
+    optAll.value = "";
+    optAll.textContent = "Todas";
+    sel.appendChild(optAll);
+    const sorted = Array.from(nomesExpedicoes).sort();
+    sorted.forEach(nome => {
+      const opt = document.createElement("option");
+      opt.value = nome;
+      opt.textContent = nome;
+      sel.appendChild(opt);
+    });
+  }
+
+  /**
+   * Monta a tabela final unificada.
+   * Cada grupo (expedição, tabela) gera uma linha com:
+   *  - Coluna 1: expNome
+   *  - Coluna 2: tabela
+   *  - Coluna 3: mini-tabela com os registros do grupo
+   */
+  function montarTabelaFinal(grupos) {
+    const tbody = document.getElementById("tabelaGeral").querySelector("tbody");
+    tbody.innerHTML = "";
+    if (grupos.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='3'>Nenhum registro encontrado.</td></tr>";
+      return;
+    }
+    grupos.forEach(grupo => {
+      const tr = document.createElement("tr");
+      // Coluna: Expedição
+      const tdExp = document.createElement("td");
+      tdExp.textContent = grupo.expNome;
+      tr.appendChild(tdExp);
+      // Coluna: Tabela
+      const tdTab = document.createElement("td");
+      tdTab.textContent = grupo.tabela;
+      tr.appendChild(tdTab);
+      // Coluna: Mini-tabela com os registros do grupo
+      const tdMini = document.createElement("td");
+      tdMini.innerHTML = convertRecordsToMiniTable(grupo.records);
+      tr.appendChild(tdMini);
+      tbody.appendChild(tr);
+    });
+  }
+
+  /**
+   * Converte os registros de um grupo (mesma expedição e tabela) em uma mini-tabela.
+   * Cada registro gera uma linha. As colunas são a união das chaves presentes em row_data.
+   */
+  function convertRecordsToMiniTable(records) {
+    if (!records || records.length === 0) return "<em>Sem registros</em>";
+    const allKeys = new Set();
+    records.forEach(r => {
+      const rd = r.row_data;
+      if (rd && typeof rd === "object") {
+        if (Array.isArray(rd)) {
+          rd.forEach(obj => Object.keys(obj).forEach(k => allKeys.add(k)));
+        } else {
+          Object.keys(rd).forEach(k => allKeys.add(k));
+        }
+      }
+    });
+    const keysArray = Array.from(allKeys);
+    let html = '<table class="mini-table"><thead><tr>';
+    keysArray.forEach(k => {
+      html += `<th>${k}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    records.forEach(r => {
+      const rd = r.row_data;
+      if (!rd) {
+        html += `<tr><td colspan="${keysArray.length}"><em>Sem row_data</em></td></tr>`;
+        return;
+      }
+      const arr = Array.isArray(rd) ? rd : [rd];
+      arr.forEach(obj => {
+        html += "<tr>";
+        keysArray.forEach(k => {
+          let val = (obj && obj[k] !== undefined) ? obj[k].toString() : "";
+          // Substitui ";" e tabulações por quebras de linha
+          val = val.replace(/; ?/g, "<br>").replace(/\t/g, "<br>");
+          html += `<td>${val}</td>`;
+        });
+        html += "</tr>";
+      });
+    });
+    html += '</tbody></table>';
+    return html;
+  }
+
+  /**
+   * Aplica os filtros de expedição e tabela sobre os grupos e monta a tabela final.
+   */
+  function aplicarFiltros() {
+    const selExp = document.getElementById("expedicaoSelect").value;
+    const selTab = document.getElementById("tabelaSelect").value;
+    let lista = gruposAgrupados.slice();
+    if (selExp) {
+      lista = lista.filter(item => item.expNome === selExp);
+    }
+    if (selTab) {
+      lista = lista.filter(item => item.tabela === selTab);
+    }
+    montarTabelaFinal(lista);
+  }
+
+  /**
+   * Limpa os filtros e exibe todos os grupos.
+   */
+  function limparFiltros() {
+    document.getElementById("expedicaoSelect").value = "";
+    document.getElementById("tabelaSelect").value = "";
+    montarTabelaFinal(gruposAgrupados);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Usuários - FieldToLab</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #007BFF, #0056b3);
+            padding: 15px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .navbar .logout {
+            background: white;
+            color: #007BFF;
+            padding: 8px 15px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+        .navbar .logout:hover {
+            background: #ddd;
+            transform: scale(1.05);
+        }
+        .container {
+            flex: 1;
+            padding: 20px;
+        }
+        .create-user-btn {
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+        .create-user-btn:hover {
+            background: linear-gradient(135deg, #218838, #28a745);
+            transform: scale(1.05);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+        }
+        table th, table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        table th {
+            background: linear-gradient(135deg, #007BFF, #0056b3);
+            color: white;
+            font-weight: bold;
+        }
+        table tr:hover {
+            background: #f1f1f1;
+        }
+        table tr:last-child td {
+            border-bottom: none;
+        }
+        .actions {
+            display: flex;
+            justify-content: flex-end; /* Move os botões para a direita */
+            gap: 10px;
+        }
+        .delete-btn {
+            background: linear-gradient(135deg, #dc3545, #b02a37);
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+        .delete-btn:hover {
+            background: linear-gradient(135deg, #b02a37, #dc3545);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>Gerenciar Usuários</h1>
+        <button class="logout" onclick="logout()">Logout</button>
+    </div>
+    <div class="container">
+        <h2>Lista de Usuários</h2>
+        <button onclick="window.location.href='/create_user'" class="create-user-btn">
+            Criar Novo Usuário
+        </button>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Usuário</th>
+                    <th>Email</th>
+                    <th>Tipo</th>
+                    <th style="text-align: right;">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if users %}
+                    {% for user in users %}
+                    <tr id="user-row-{{ user.id }}">
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.role }}</td>
+                        <td>
+                            <div class="actions">
+                                <a href="/user-details/{{ user.id }}">
+                                    <i class="fas fa-eye"></i> Ver Detalhes
+                                </a>
+                                <button class="delete-btn" onclick="deleteUser({{ user.id }})">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: #888;">
+                        Nenhum usuário encontrado.
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+        async function logout() {
+            try {
+                const response = await fetch('/logout', { method: 'GET' });
+                if (response.ok) {
+                    alert('Logout realizado com sucesso!');
+                    window.location.href = '/';
+                } else {
+                    const data = await response.json();
+                    alert(`Erro ao realizar logout: ${data.message || 'Erro desconhecido.'}`);
+                }
+            } catch (error) {
+                alert('Erro de rede ao realizar logout. Verifique sua conexão.');
+            }
+        }
+
+        async function deleteUser(userId) {
+            if (!confirm("Tem certeza que deseja excluir este usuário? Essa ação é irreversível.")) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/delete-user/${userId}`, { method: 'POST' });
+
+                if (response.ok) {
+                    alert("Usuário deletado com sucesso!");
+                    document.getElementById(`user-row-${userId}`).remove();
+                } else {
+                    const data = await response.json();
+                    alert(`Erro: ${data.error || 'Não foi possível excluir o usuário.'}`);
+                }
+            } catch (error) {
+                alert("Erro de rede ao tentar excluir o usuário.");
+            }
+        }
+    </script>
+</body>
+</html>
